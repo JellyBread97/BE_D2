@@ -3,6 +3,7 @@ import fs from "fs";
 import uniqid from "uniqid";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
+import { parseFile, uploadFile } from "../utils/upload/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,6 +98,39 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 // update author
+router.put(
+  "/:id/avatar",
+  parseFile.single("avatar"),
+  uploadFile,
+  async (req, res, next) => {
+    try {
+      const fileAsBuffer = fs.readFileSync(authorsFilePath);
+      const fileAsString = fileAsBuffer.toString();
+      let fileAsJSONArray = JSON.parse(fileAsString);
+      const authorIndex = fileAsJSONArray.findIndex(
+        (author) => author.id === req.params.id
+      );
+      if (!authorIndex == -1) {
+        res
+          .status(404)
+          .send({ message: `Authos with ${req.params.id} is not found` });
+      }
+      const previousAuthorData = fileAsJSONArray[authorIndex];
+      const changedAuthor = {
+        ...previousAuthorData,
+        avatar: req.file,
+        updatedAt: new Date(),
+        id: req.params.id,
+      };
+      fileAsJSONArray[authorIndex] = changedAuthor;
+      fs.writeFileSync(authorsFilePath.JSON.stringify(fileAsJSONArray));
+      res.send(changedAuthor);
+    } catch (error) {
+      res.send(500).send({ message: error.message });
+    }
+  }
+);
+
 router.put("/:id", async (req, res, next) => {
   try {
     const fileAsBuffer = fs.readFileSync(authorsFilePath);
